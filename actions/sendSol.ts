@@ -1,5 +1,6 @@
 'use server'
 
+import { connection } from "@/lib/rpc-endpoints";
 import {
   Connection,
   Keypair,
@@ -21,8 +22,6 @@ export const sendSolana = async (amount: string, toAddress: string) => {
     );
 
     const toPubkey = toAddress ? new PublicKey(toAddress) : Keypair.generate().publicKey;
-
-    const connection = new Connection("https://api.devnet.solana.com");
 
     const lamportsToSend = Number(amount) * LAMPORTS_PER_SOL;
 
