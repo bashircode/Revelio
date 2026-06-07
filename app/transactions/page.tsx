@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { getTransactions } from "@/actions/getTransactions"
+import type { TransactionInfo } from "@/actions/getTransactions"
 import { useQuery } from "@tanstack/react-query"
 import { Navbar } from "@/components/navbar"
 
@@ -27,8 +28,15 @@ export default function TransactionsPage() {
     return new Date(timestamp * 1000).toLocaleString()
   }
 
-  const truncateSig = (sig: string) => {
-    return `${sig.slice(0, 12)}…${sig.slice(-12)}`
+  const truncate = (str: string, front = 6, back = 4) => {
+    if (str.length <= front + back + 3) return str
+    return `${str.slice(0, front)}…${str.slice(-back)}`
+  }
+
+  const formatSol = (value: number) => {
+    if (value === 0) return "0 SOL"
+    const sign = value > 0 ? "+" : ""
+    return `${sign}${value.toFixed(6)} SOL`
   }
 
   return (
@@ -44,7 +52,7 @@ export default function TransactionsPage() {
       <Navbar />
 
       {/* Main Content */}
-      <main className="relative z-10 max-w-4xl mx-auto px-6 pt-32 pb-24">
+      <main className="relative z-10 max-w-5xl mx-auto px-6 pt-32 pb-24">
         {/* Page Header */}
         <div className="mb-10">
           <h1
@@ -152,9 +160,9 @@ export default function TransactionsPage() {
           >
             {/* Table Header */}
             <div
-              className="grid gap-4 px-5 py-3 text-[10px] uppercase tracking-widest"
+              className="grid gap-3 px-5 py-3 text-[10px] uppercase tracking-widest"
               style={{
-                gridTemplateColumns: "1fr 180px 100px",
+                gridTemplateColumns: "1.4fr 1fr 0.6fr 140px 90px",
                 fontFamily: "var(--font-mono)",
                 color: "var(--wm-text-dim)",
                 borderBottom: "1px solid var(--wm-border)",
@@ -162,89 +170,172 @@ export default function TransactionsPage() {
               }}
             >
               <span>Signature</span>
+              <span>Balance Change</span>
+              <span>Fee</span>
               <span>Time</span>
               <span className="text-right">Status</span>
             </div>
 
             {/* Rows */}
-            {data.map((tx, i) => (
+            {data.map((tx: TransactionInfo, i: number) => (
               <div
                 key={tx.signature}
-                className={`grid gap-4 px-5 py-4 transition-colors duration-150 stagger-${i + 1}`}
+                className={`stagger-${i + 1}`}
                 style={{
-                  gridTemplateColumns: "1fr 180px 100px",
                   borderBottom:
                     i < data.length - 1
                       ? "1px solid var(--wm-border)"
                       : "none",
-                  cursor: "pointer",
                   animationFillMode: "backwards",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background =
-                    "var(--wm-bg-card-hover)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-                onClick={() =>
-                  window.open(
-                    `https://explorer.solana.com/tx/${tx.signature}?cluster=devnet`,
-                    "_blank"
-                  )
-                }
               >
-                {/* Signature */}
-                <span
-                  className="text-sm truncate"
+                {/* Main Row */}
+                <div
+                  className="grid gap-3 px-5 py-4 transition-colors duration-150 items-center"
                   style={{
-                    fontFamily: "var(--font-mono)",
-                    color: "var(--wm-blue)",
+                    gridTemplateColumns: "1.4fr 1fr 0.6fr 140px 90px",
+                    cursor: "pointer",
                   }}
-                  title={tx.signature}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background =
+                      "var(--wm-bg-card-hover)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
+                  onClick={() =>
+                    window.open(
+                      `https://explorer.solana.com/tx/${tx.signature}?cluster=devnet`,
+                      "_blank"
+                    )
+                  }
                 >
-                  {truncateSig(tx.signature)}
-                </span>
+                  {/* Signature */}
+                  <span
+                    className="text-sm truncate"
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--wm-blue)",
+                    }}
+                    title={tx.signature}
+                  >
+                    {truncate(tx.signature, 12, 8)}
+                  </span>
 
-                {/* Time */}
-                <span
-                  className="text-xs self-center"
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    color: "var(--wm-text-dim)",
-                  }}
-                >
-                  {formatTime(tx.blockTime)}
-                </span>
+                  {/* Balance Change */}
+                  <span
+                    className="text-sm font-semibold"
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      color:
+                        tx.balanceChange > 0
+                          ? "var(--wm-green)"
+                          : tx.balanceChange < 0
+                            ? "var(--wm-red, #ef4444)"
+                            : "var(--wm-text-dim)",
+                    }}
+                  >
+                    {formatSol(tx.balanceChange)}
+                  </span>
 
-                {/* Status */}
-                <span className="text-right self-center">
-                  {tx.confirmationStatus === "finalized" ? (
-                    <span
-                      className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full"
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        background: "var(--wm-green-dim)",
-                        color: "var(--wm-green)",
-                      }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-current pulse-dot" />
-                      Finalized
-                    </span>
-                  ) : (
-                    <span
-                      className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full"
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        background: "var(--wm-yellow-dim)",
-                        color: "var(--wm-yellow)",
-                      }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-current pulse-dot" />
-                      {tx.confirmationStatus ?? "Pending"}
-                    </span>
-                  )}
-                </span>
+                  {/* Fee */}
+                  <span
+                    className="text-xs"
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--wm-text-dim)",
+                    }}
+                  >
+                    {tx.fee > 0 ? `${tx.fee.toFixed(6)}` : "—"}
+                  </span>
+
+                  {/* Time */}
+                  <span
+                    className="text-xs"
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--wm-text-dim)",
+                    }}
+                  >
+                    {formatTime(tx.blockTime)}
+                  </span>
+
+                  {/* Status */}
+                  <span className="text-right">
+                    {tx.status === "success" ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full"
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          background: "var(--wm-green-dim)",
+                          color: "var(--wm-green)",
+                        }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-current pulse-dot" />
+                        {tx.confirmationStatus === "finalized"
+                          ? "Final"
+                          : (tx.confirmationStatus ?? "OK")}
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full"
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          background: "var(--wm-red-dim, rgba(239,68,68,0.1))",
+                          color: "var(--wm-red, #ef4444)",
+                        }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        Failed
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                {/* Token Transfers (if any) */}
+                {tx.tokenTransfers.length > 0 && (
+                  <div
+                    className="px-5 pb-3 flex flex-wrap gap-2"
+                    style={{ paddingTop: 0 }}
+                  >
+                    {tx.tokenTransfers.map((tt, j) => (
+                      <span
+                        key={`${tx.signature}-token-${j}`}
+                        className="inline-flex items-center gap-2 text-[11px] px-3 py-1.5 rounded-full"
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          background: "rgba(139, 92, 246, 0.12)",
+                          border: "1px solid rgba(139, 92, 246, 0.25)",
+                          color: "#a78bfa",
+                        }}
+                        title={`Mint: ${tt.mint}`}
+                      >
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 6v12M6 12h12" />
+                        </svg>
+                        <span style={{ color: "#c4b5fd", fontWeight: 600 }}>
+                          {tt.amount}
+                        </span>
+                        <span style={{ opacity: 0.7 }}>
+                          {truncate(tt.mint, 4, 4)}
+                        </span>
+                        <span style={{ opacity: 0.5, fontSize: "9px" }}>
+                          {truncate(tt.source, 4, 4)} → {truncate(tt.destination, 4, 4)}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
 
