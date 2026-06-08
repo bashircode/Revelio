@@ -1,36 +1,43 @@
 "use server"
 
 import { connection } from "@/lib/rpc-endpoints"
-import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js"
+import { classifyTransaction, type ClassifiedTransaction } from "@/lib/utils"
+import { resolveTokens, generateFallbackToken, type TokenInfo } from "@/lib/jupiter"
+import { calculatePNL, calculateWalletStats, type TokenPnL, type WalletStats } from "@/lib/analytics"
+import { PublicKey } from "@solana/web3.js"
 
-export interface TokenTransfer {
-  mint: string
-  amount: number
-  decimals: number
-  source: string
-  destination: string
-}
+export type { TokenInfo }
 
 export interface TransactionInfo {
   signature: string
-  blockTime: number | null | undefined
-  confirmationStatus: string | null | undefined
+  type: ClassifiedTransaction["type"]
+  amountSol: number
   fee: number
-  balanceChange: number // SOL change for the queried wallet
+  timestamp: number | null
   status: "success" | "failed"
-  tokenTransfers: TokenTransfer[]
+  token: TokenInfo | null
 }
 
-export const getTransactions = async (address: string): Promise<TransactionInfo[]> => {
+export interface TransactionsResponse {
+  transactions: TransactionInfo[]
+  tokenPnls: TokenPnL[]
+  stats: WalletStats
+}
+
+export const getTransactions = async (address: string): Promise<TransactionsResponse> => {
   const pubkey = new PublicKey(address)
 
-  const signatures = await connection.getSignaturesForAddress(pubkey, {
-    limit: 20,
-  })
+  const signatures = await connection.getSignaturesForAddress(pubkey, { limit: 15 })
 
-  if (signatures.length === 0) return []
+  if (signatures.length === 0) {
+    return {
+      transactions: [],
+      tokenPnls: [],
+      stats: { winRate: 0, avgHoldTimeHours: 0, totalPnl: 0, biggestLoss: 0 },
+    }
+  }
 
-  const transactions = await connection.getParsedTransactions(
+  const parsedTxs = await connection.getParsedTransactions(
     signatures.map((s) => s.signature),
     {
       commitment: "confirmed",
@@ -38,79 +45,52 @@ export const getTransactions = async (address: string): Promise<TransactionInfo[
     }
   )
 
-  const results: TransactionInfo[] = []
+  // First pass: classify and collect unique mints
+  const classified: Array<{
+    sig: (typeof signatures)[number]
+    classified: ClassifiedTransaction
+    status: "success" | "failed"
+  }> = []
+  const mintSet = new Set<string>()
 
   for (let i = 0; i < signatures.length; i++) {
     const sig = signatures[i]
-    const tx = transactions[i]
+    const tx = parsedTxs[i]
+    if (!tx) continue
 
-    let fee = 0
-    let balanceChange = 0
-    let status: "success" | "failed" = "success"
-    const tokenTransfers: TokenTransfer[] = []
+    const status: "success" | "failed" = tx.meta?.err ? "failed" : "success"
+    const c = classifyTransaction(tx)
 
-    if (tx) {
-      fee = (tx.meta?.fee ?? 0) / LAMPORTS_PER_SOL
+    if (c.tokenMint) mintSet.add(c.tokenMint)
+    classified.push({ sig, classified: c, status })
+  }
 
-      // Check transaction status
-      if (tx.meta?.err) {
-        status = "failed"
-      }
+  // Resolve token names from Jupiter (single call)
+  const tokenMap = await resolveTokens([...mintSet])
 
-      // Calculate SOL balance change for the queried address
-      const accountKeys = tx.transaction.message.accountKeys
-      const accountIndex = accountKeys.findIndex(
-        (key) => key.pubkey.toBase58() === address
-      )
+  // Second pass: build transaction list
+  const transactions: TransactionInfo[] = []
 
-      if (accountIndex !== -1 && tx.meta) {
-        const preBalance = tx.meta.preBalances[accountIndex] ?? 0
-        const postBalance = tx.meta.postBalances[accountIndex] ?? 0
-        balanceChange = (postBalance - preBalance) / LAMPORTS_PER_SOL
-      }
-
-      // Extract SPL token transfers from inner instructions + top-level
-      const allInstructions = [
-        ...tx.transaction.message.instructions,
-        ...(tx.meta?.innerInstructions?.flatMap((ix) => ix.instructions) ?? []),
-      ]
-
-      for (const ix of allInstructions) {
-        if ("parsed" in ix && ix.program === "spl-token") {
-          const parsed = ix.parsed
-          if (
-            parsed.type === "transfer" ||
-            parsed.type === "transferChecked"
-          ) {
-            const info = parsed.info
-            tokenTransfers.push({
-              mint: info.mint ?? "Unknown",
-              amount:
-                parsed.type === "transferChecked"
-                  ? Number(info.tokenAmount?.uiAmount ?? info.amount ?? 0)
-                  : Number(info.amount ?? 0),
-              decimals:
-                parsed.type === "transferChecked"
-                  ? Number(info.tokenAmount?.decimals ?? 0)
-                  : 0,
-              source: info.source ?? info.authority ?? "",
-              destination: info.destination ?? "",
-            })
-          }
-        }
-      }
+  for (const { sig, classified: c, status } of classified) {
+    let token: TokenInfo | null = null
+    if (c.tokenMint) {
+      token = tokenMap.get(c.tokenMint) ?? generateFallbackToken(c.tokenMint)
     }
 
-    results.push({
+    transactions.push({
       signature: sig.signature,
-      blockTime: sig.blockTime,
-      confirmationStatus: sig.confirmationStatus,
-      fee,
-      balanceChange,
+      type: c.type,
+      amountSol: c.amountSol,
+      fee: c.fee,
+      timestamp: c.timestamp,
       status,
-      tokenTransfers,
+      token,
     })
   }
 
-  return results
+  // Compute analytics
+  const tokenPnls = calculatePNL(transactions)
+  const stats = calculateWalletStats(tokenPnls)
+
+  return { transactions, tokenPnls, stats }
 }

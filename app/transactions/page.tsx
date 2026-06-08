@@ -23,7 +23,7 @@ export default function TransactionsPage() {
     }
   }
 
-  const formatTime = (timestamp: number | null | undefined) => {
+  const formatTime = (timestamp: number | null) => {
     if (!timestamp) return "—"
     return new Date(timestamp * 1000).toLocaleString()
   }
@@ -35,9 +35,24 @@ export default function TransactionsPage() {
 
   const formatSol = (value: number) => {
     if (value === 0) return "0 SOL"
-    const sign = value > 0 ? "+" : ""
-    return `${sign}${value.toFixed(6)} SOL`
+    return `${value.toFixed(6)} SOL`
   }
+
+  const typeLabel = (type: TransactionInfo["type"]) => {
+    switch (type) {
+      case "buy":
+        return { text: "BUY", color: "var(--wm-green)", bg: "var(--wm-green-dim)" }
+      case "sell":
+        return { text: "SELL", color: "var(--wm-red, #ef4444)", bg: "var(--wm-red-dim, rgba(239,68,68,0.1))" }
+      case "SOL_TRANSFER":
+        return { text: "SOL TRANSFER", color: "var(--wm-blue)", bg: "rgba(59,130,246,0.1)" }
+      case "TOKEN_TRANSFER":
+        return { text: "TOKEN TRANSFER", color: "#a78bfa", bg: "rgba(139,92,246,0.12)" }
+    }
+  }
+
+  const stats = data?.stats
+  const transactions = data?.transactions
 
   return (
     <div className="relative min-h-screen grid-bg">
@@ -72,7 +87,7 @@ export default function TransactionsPage() {
               color: "var(--wm-text-dim)",
             }}
           >
-            Look up recent transactions for any Solana wallet on devnet
+            Look up recent transactions for any Solana wallet
           </p>
         </div>
 
@@ -149,8 +164,146 @@ export default function TransactionsPage() {
           </div>
         )}
 
+        {/* Stats Cards */}
+        {stats && transactions && transactions.length > 0 && (
+          <div
+            className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-fade-in-up"
+          >
+            {/* Win Rate */}
+            <div
+              className="rounded-lg p-4"
+              style={{
+                background: "var(--wm-bg-card)",
+                border: "1px solid var(--wm-border)",
+              }}
+            >
+              <p
+                className="text-[10px] uppercase tracking-widest mb-2"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  color: "var(--wm-text-dim)",
+                }}
+              >
+                Win Rate
+              </p>
+              <p
+                className="text-2xl font-bold"
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  color: stats.winRate >= 50 ? "var(--wm-green)" : "var(--wm-red, #ef4444)",
+                }}
+              >
+                {stats.winRate.toFixed(0)}%
+              </p>
+            </div>
+
+            {/* Avg Hold Time */}
+            <div
+              className="rounded-lg p-4"
+              style={{
+                background: "var(--wm-bg-card)",
+                border: "1px solid var(--wm-border)",
+              }}
+            >
+              <p
+                className="text-[10px] uppercase tracking-widest mb-2"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  color: "var(--wm-text-dim)",
+                }}
+              >
+                Avg Hold Time
+              </p>
+              <p
+                className="text-2xl font-bold"
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  color: "var(--wm-text-bright)",
+                }}
+              >
+                {stats.avgHoldTimeHours < 1
+                  ? `${(stats.avgHoldTimeHours * 60).toFixed(0)}m`
+                  : `${stats.avgHoldTimeHours.toFixed(1)}h`}
+              </p>
+            </div>
+
+            {/* Total PnL */}
+            <div
+              className="rounded-lg p-4"
+              style={{
+                background: "var(--wm-bg-card)",
+                border: "1px solid var(--wm-border)",
+              }}
+            >
+              <p
+                className="text-[10px] uppercase tracking-widest mb-2"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  color: "var(--wm-text-dim)",
+                }}
+              >
+                Total PnL
+              </p>
+              <p
+                className="text-2xl font-bold"
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  color: stats.totalPnl >= 0 ? "var(--wm-green)" : "var(--wm-red, #ef4444)",
+                }}
+              >
+                {stats.totalPnl >= 0 ? "+" : ""}
+                {stats.totalPnl.toFixed(2)}
+                <span
+                  className="text-sm font-normal ml-1"
+                  style={{ color: "var(--wm-text-dim)" }}
+                >
+                  SOL
+                </span>
+              </p>
+            </div>
+
+            {/* Biggest Loss */}
+            <div
+              className="rounded-lg p-4"
+              style={{
+                background: "var(--wm-bg-card)",
+                border: "1px solid var(--wm-border)",
+              }}
+            >
+              <p
+                className="text-[10px] uppercase tracking-widest mb-2"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  color: "var(--wm-text-dim)",
+                }}
+              >
+                Biggest Loss
+              </p>
+              <p
+                className="text-2xl font-bold"
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  color: stats.biggestLoss < 0 ? "var(--wm-red, #ef4444)" : "var(--wm-text-dim)",
+                }}
+              >
+                {stats.biggestLoss === 0
+                  ? "—"
+                  : `${stats.biggestLoss.toFixed(2)}`}
+                {stats.biggestLoss !== 0 && (
+                  <span
+                    className="text-sm font-normal ml-1"
+                    style={{ color: "var(--wm-text-dim)" }}
+                  >
+                    SOL
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Results */}
-        {data && data.length > 0 && (
+        {transactions && transactions.length > 0 && (
           <div
             className="rounded overflow-hidden animate-fade-in-up"
             style={{
@@ -162,182 +315,180 @@ export default function TransactionsPage() {
             <div
               className="grid gap-3 px-5 py-3 text-[10px] uppercase tracking-widest"
               style={{
-                gridTemplateColumns: "1.4fr 1fr 0.6fr 140px 90px",
+                gridTemplateColumns: "90px 1fr 1fr 1fr 0.5fr 140px",
                 fontFamily: "var(--font-mono)",
                 color: "var(--wm-text-dim)",
                 borderBottom: "1px solid var(--wm-border)",
                 background: "rgba(255,255,255,0.02)",
               }}
             >
+              <span>Type</span>
+              <span>Token</span>
               <span>Signature</span>
-              <span>Balance Change</span>
+              <span>Amount (SOL)</span>
               <span>Fee</span>
-              <span>Time</span>
-              <span className="text-right">Status</span>
+              <span className="text-right">Time</span>
             </div>
 
             {/* Rows */}
-            {data.map((tx: TransactionInfo, i: number) => (
-              <div
-                key={tx.signature}
-                className={`stagger-${i + 1}`}
-                style={{
-                  borderBottom:
-                    i < data.length - 1
-                      ? "1px solid var(--wm-border)"
-                      : "none",
-                  animationFillMode: "backwards",
-                }}
-              >
-                {/* Main Row */}
+            {transactions.map((tx: TransactionInfo, i: number) => {
+              const label = typeLabel(tx.type)
+              return (
                 <div
-                  className="grid gap-3 px-5 py-4 transition-colors duration-150 items-center"
+                  key={tx.signature}
+                  className={`stagger-${i + 1}`}
                   style={{
-                    gridTemplateColumns: "1.4fr 1fr 0.6fr 140px 90px",
-                    cursor: "pointer",
+                    borderBottom:
+                      i < transactions.length - 1
+                        ? "1px solid var(--wm-border)"
+                        : "none",
+                    animationFillMode: "backwards",
                   }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background =
-                      "var(--wm-bg-card-hover)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                  onClick={() =>
-                    window.open(
-                      `https://explorer.solana.com/tx/${tx.signature}?cluster=devnet`,
-                      "_blank"
-                    )
-                  }
                 >
-                  {/* Signature */}
-                  <span
-                    className="text-sm truncate"
+                  <div
+                    className="grid gap-3 px-5 py-4 transition-colors duration-150 items-center"
                     style={{
-                      fontFamily: "var(--font-mono)",
-                      color: "var(--wm-blue)",
+                      gridTemplateColumns: "90px 1fr 1fr 1fr 0.5fr 140px",
+                      cursor: "pointer",
                     }}
-                    title={tx.signature}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background =
+                        "var(--wm-bg-card-hover)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
+                    onClick={() =>
+                      window.open(
+                        `https://explorer.solana.com/tx/${tx.signature}`,
+                        "_blank"
+                      )
+                    }
                   >
-                    {truncate(tx.signature, 12, 8)}
-                  </span>
-
-                  {/* Balance Change */}
-                  <span
-                    className="text-sm font-semibold"
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      color:
-                        tx.balanceChange > 0
-                          ? "var(--wm-green)"
-                          : tx.balanceChange < 0
-                            ? "var(--wm-red, #ef4444)"
-                            : "var(--wm-text-dim)",
-                    }}
-                  >
-                    {formatSol(tx.balanceChange)}
-                  </span>
-
-                  {/* Fee */}
-                  <span
-                    className="text-xs"
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      color: "var(--wm-text-dim)",
-                    }}
-                  >
-                    {tx.fee > 0 ? `${tx.fee.toFixed(6)}` : "—"}
-                  </span>
-
-                  {/* Time */}
-                  <span
-                    className="text-xs"
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      color: "var(--wm-text-dim)",
-                    }}
-                  >
-                    {formatTime(tx.blockTime)}
-                  </span>
-
-                  {/* Status */}
-                  <span className="text-right">
-                    {tx.status === "success" ? (
+                    {/* Type Badge */}
+                    <span>
                       <span
-                        className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full"
+                        className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold"
                         style={{
                           fontFamily: "var(--font-mono)",
-                          background: "var(--wm-green-dim)",
-                          color: "var(--wm-green)",
+                          background: label.bg,
+                          color: label.color,
                         }}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-current pulse-dot" />
-                        {tx.confirmationStatus === "finalized"
-                          ? "Final"
-                          : (tx.confirmationStatus ?? "OK")}
+                        {label.text}
                       </span>
-                    ) : (
-                      <span
-                        className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full"
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          background: "var(--wm-red-dim, rgba(239,68,68,0.1))",
-                          color: "var(--wm-red, #ef4444)",
-                        }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        Failed
-                      </span>
-                    )}
-                  </span>
-                </div>
+                    </span>
 
-                {/* Token Transfers (if any) */}
-                {tx.tokenTransfers.length > 0 && (
-                  <div
-                    className="px-5 pb-3 flex flex-wrap gap-2"
-                    style={{ paddingTop: 0 }}
-                  >
-                    {tx.tokenTransfers.map((tt, j) => (
-                      <span
-                        key={`${tx.signature}-token-${j}`}
-                        className="inline-flex items-center gap-2 text-[11px] px-3 py-1.5 rounded-full"
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          background: "rgba(139, 92, 246, 0.12)",
-                          border: "1px solid rgba(139, 92, 246, 0.25)",
-                          color: "#a78bfa",
-                        }}
-                        title={`Mint: ${tt.mint}`}
-                      >
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                    {/* Token Info */}
+                    <span className="flex items-center gap-2 min-w-0">
+                      {tx.token ? (
+                        <>
+                          {tx.token.icon && (
+                            <img
+                              src={tx.token.icon}
+                              alt={tx.token.symbol}
+                              className="w-5 h-5 rounded-full flex-shrink-0"
+                              style={{
+                                border: "1px solid var(--wm-border)",
+                              }}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = "none"
+                              }}
+                            />
+                          )}
+                          <span className="flex flex-col min-w-0">
+                            <span
+                              className="text-xs font-semibold truncate"
+                              style={{
+                                fontFamily: "var(--font-mono)",
+                                color: "var(--wm-text-bright)",
+                              }}
+                            >
+                              {tx.token.symbol}
+                            </span>
+                            <span
+                              className="text-[10px] truncate"
+                              style={{
+                                fontFamily: "var(--font-mono)",
+                                color: "var(--wm-text-dim)",
+                              }}
+                              title={tx.token.name}
+                            >
+                              {tx.token.name.length > 20
+                                ? tx.token.name.slice(0, 18) + "…"
+                                : tx.token.name}
+                            </span>
+                          </span>
+                        </>
+                      ) : (
+                        <span
+                          className="text-xs"
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            color: "var(--wm-text-dim)",
+                          }}
                         >
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 6v12M6 12h12" />
-                        </svg>
-                        <span style={{ color: "#c4b5fd", fontWeight: 600 }}>
-                          {tt.amount}
+                          SOL
                         </span>
-                        <span style={{ opacity: 0.7 }}>
-                          {truncate(tt.mint, 4, 4)}
-                        </span>
-                        <span style={{ opacity: 0.5, fontSize: "9px" }}>
-                          {truncate(tt.source, 4, 4)} → {truncate(tt.destination, 4, 4)}
-                        </span>
-                      </span>
-                    ))}
+                      )}
+                    </span>
+
+                    {/* Signature */}
+                    <span
+                      className="text-sm truncate"
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--wm-blue)",
+                      }}
+                      title={tx.signature}
+                    >
+                      {truncate(tx.signature, 10, 6)}
+                    </span>
+
+                    {/* Amount in SOL */}
+                    <span
+                      className="text-sm font-semibold"
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        color:
+                          tx.type === "buy"
+                            ? "var(--wm-green)"
+                            : tx.type === "sell"
+                              ? "var(--wm-red, #ef4444)"
+                              : "var(--wm-text)",
+                      }}
+                    >
+                      {tx.type === "buy" && "−"}
+                      {tx.type === "sell" && "+"}
+                      {formatSol(tx.amountSol)}
+                    </span>
+
+                    {/* Fee */}
+                    <span
+                      className="text-xs"
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--wm-text-dim)",
+                      }}
+                    >
+                      {tx.fee > 0 ? `${tx.fee.toFixed(6)}` : "—"}
+                    </span>
+
+                    {/* Timestamp */}
+                    <span
+                      className="text-xs text-right"
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--wm-text-dim)",
+                      }}
+                    >
+                      {formatTime(tx.timestamp)}
+                    </span>
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              )
+            })}
 
             {/* Footer */}
             <div
@@ -349,13 +500,13 @@ export default function TransactionsPage() {
                 background: "rgba(255,255,255,0.02)",
               }}
             >
-              Showing {data.length} transactions · Devnet
+              Showing {transactions.length} transactions · Mainnet
             </div>
           </div>
         )}
 
         {/* Empty State */}
-        {data && data.length === 0 && (
+        {transactions && transactions.length === 0 && (
           <div
             className="text-center py-16 rounded animate-fade-in-up"
             style={{
@@ -412,7 +563,7 @@ export default function TransactionsPage() {
             className="text-[10px] text-[var(--wm-text-dim)] uppercase tracking-wider"
             style={{ fontFamily: "var(--font-mono)" }}
           >
-            Solana Devnet · {new Date().getFullYear()}
+            Solana Mainnet · {new Date().getFullYear()}
           </span>
         </div>
       </footer>
