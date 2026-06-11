@@ -3,6 +3,8 @@ export interface TokenInfo {
   symbol: string
   mint: string
   icon?: string
+  decimals?: number
+  usdPrice?: number
 }
 
 const JUP_API_KEY = process.env.JUP_API_KEY
@@ -19,6 +21,7 @@ export function generateFallbackToken(mint: string): TokenInfo {
 }
 
 // Fetch token info from Jupiter for a batch of mints in one call
+// The search response already includes usdPrice per token
 export async function resolveTokens(mints: string[]): Promise<Map<string, TokenInfo>> {
   "use server"
   
@@ -35,8 +38,15 @@ export async function resolveTokens(mints: string[]): Promise<Map<string, TokenI
         },
       }
     )
-    const tokens: Array<{ id: string; name: string; symbol: string; icon?: string; firstPool?: { id: string } }> =
-      await response.json()
+    const tokens: Array<{
+      id: string
+      name: string
+      symbol: string
+      icon?: string
+      decimals?: number
+      usdPrice?: number
+      firstPool?: { id: string }
+    }> = await response.json();
 
     for (const t of tokens) {
       map.set(t.id, {
@@ -44,6 +54,8 @@ export async function resolveTokens(mints: string[]): Promise<Map<string, TokenI
         symbol: t.symbol,
         mint: t.id,
         icon: t.icon,
+        decimals: t.decimals,
+        usdPrice: t.usdPrice,
       })
     }
   } catch (err) {
@@ -52,3 +64,4 @@ export async function resolveTokens(mints: string[]): Promise<Map<string, TokenI
 
   return map
 }
+

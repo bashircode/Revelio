@@ -7,9 +7,10 @@ import { ArrowRight01Icon, AiSearchIcon } from "@hugeicons/core-free-icons"
 interface HeroSectionProps {
   onAnalyze: (address: string) => void
   isLoading: boolean
+  progressLabel?: string
 }
 
-export function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) {
+export function HeroSection({ onAnalyze, isLoading, progressLabel }: HeroSectionProps) {
   const [address, setAddress] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -79,7 +80,7 @@ export function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) {
             {isLoading ? (
               <>
                 <span className="w-3 h-3 border-2 border-[var(--wm-bg)] border-t-transparent rounded-full animate-spin" />
-                Scanning
+                {progressLabel ?? "Scanning"}
               </>
             ) : (
               <>

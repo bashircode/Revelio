@@ -2,20 +2,19 @@
 
 import { connection } from "@/lib/rpc-endpoints"
 import { classifyTransaction, type ClassifiedTransaction } from "@/lib/utils"
-import { resolveTokens, generateFallbackToken, type TokenInfo } from "@/lib/jupiter"
+import { resolveTokens, generateFallbackToken } from "@/lib/jupiter"
 import { calculatePNL, calculateWalletStats, type TokenPnL, type WalletStats } from "@/lib/analytics"
 import { PublicKey } from "@solana/web3.js"
-
-export type { TokenInfo }
 
 export interface TransactionInfo {
   signature: string
   type: ClassifiedTransaction["type"]
   amountSol: number
+  tokenAmount: number
   fee: number
   timestamp: number | null
   status: "success" | "failed"
-  token: TokenInfo | null
+  token: any | null
 }
 
 export interface TransactionsResponse {
@@ -27,7 +26,7 @@ export interface TransactionsResponse {
 export const getTransactions = async (address: string): Promise<TransactionsResponse> => {
   const pubkey = new PublicKey(address)
 
-  const signatures = await connection.getSignaturesForAddress(pubkey, { limit: 15 })
+  const signatures = await connection.getSignaturesForAddress(pubkey, { limit: 100 })
 
   if (signatures.length === 0) {
     return {
@@ -37,13 +36,25 @@ export const getTransactions = async (address: string): Promise<TransactionsResp
     }
   }
 
-  const parsedTxs = await connection.getParsedTransactions(
-    signatures.map((s) => s.signature),
-    {
-      commitment: "confirmed",
-      maxSupportedTransactionVersion: 0,
-    }
-  )
+  const chunkrate = 10;
+
+  const allTransactions = [];
+
+  for(let i = 0; i<signatures.length; i+= chunkrate){
+    const chunk = signatures.slice(i, i+ chunkrate)
+    
+    const parsedTxs = await connection.getParsedTransactions(
+      chunk.map((s) => s.signature),
+      {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      }
+    );
+
+    allTransactions.push(...parsedTxs);
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
 
   // First pass: classify and collect unique mints
   const classified: Array<{
@@ -55,7 +66,7 @@ export const getTransactions = async (address: string): Promise<TransactionsResp
 
   for (let i = 0; i < signatures.length; i++) {
     const sig = signatures[i]
-    const tx = parsedTxs[i]
+    const tx = allTransactions[i]
     if (!tx) continue
 
     const status: "success" | "failed" = tx.meta?.err ? "failed" : "success"
@@ -65,14 +76,14 @@ export const getTransactions = async (address: string): Promise<TransactionsResp
     classified.push({ sig, classified: c, status })
   }
 
-  // Resolve token names from Jupiter (single call)
+  // Resolve token info (name, symbol, icon, usdPrice) from Jupiter
   const tokenMap = await resolveTokens([...mintSet])
 
   // Second pass: build transaction list
   const transactions: TransactionInfo[] = []
 
   for (const { sig, classified: c, status } of classified) {
-    let token: TokenInfo | null = null
+    let token: any = null
     if (c.tokenMint) {
       token = tokenMap.get(c.tokenMint) ?? generateFallbackToken(c.tokenMint)
     }
@@ -81,6 +92,7 @@ export const getTransactions = async (address: string): Promise<TransactionsResp
       signature: sig.signature,
       type: c.type,
       amountSol: c.amountSol,
+      tokenAmount: c.tokenAmount,
       fee: c.fee,
       timestamp: c.timestamp,
       status,
@@ -94,3 +106,4 @@ export const getTransactions = async (address: string): Promise<TransactionsResp
 
   return { transactions, tokenPnls, stats }
 }
+

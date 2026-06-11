@@ -7,27 +7,10 @@ import { ResultHeader } from "@/components/result-header"
 import { StatCards } from "@/components/stat-cards"
 import { AiVerdict } from "@/components/ai-verdict"
 import { CurrentHoldings } from "@/components/current-holdings"
-import { TradingPatterns } from "@/components/trading-patterns"
-import { ActivityChart } from "@/components/activity-chart"
-import { useRPC } from "@/hooks/useRPC"
+import { TradesTable } from "@/components/trades-table"
+import { useStreamAnalysis } from "@/hooks/useRPC"
 
-/* ─── Mock Data ─── */
-const MOCK_STATS = {
-  winRate: 68,
-  avgHoldTime: "4.2h",
-  totalPnl: "+47.3",
-  biggestLoss: "-8.2",
-}
-
-const MOCK_HOLDINGS = [
-  { token: "Bonk Inu", symbol: "BONK", amount: "12,450,000", pnlPercent: 142.5 },
-  { token: "Jupiter", symbol: "JUP", amount: "8,320", pnlPercent: 34.2 },
-  { token: "Raydium", symbol: "RAY", amount: "1,240", pnlPercent: -12.8 },
-  { token: "Marinade", symbol: "MNDE", amount: "45,600", pnlPercent: 8.4 },
-  { token: "Orca", symbol: "ORCA", amount: "2,100", pnlPercent: -5.3 },
-  { token: "Pyth Network", symbol: "PYTH", amount: "15,800", pnlPercent: 67.1 },
-]
-
+/* ─── Mock Data (AI & Patterns – to be replaced later) ─── */
 const MOCK_PATTERNS = [
   {
     emoji: "🎯",
@@ -79,26 +62,42 @@ const AI_SUMMARY =
   "This wallet exhibits the behavior of a seasoned degen trader with strong risk management. The operator uses sniping tools for early entries on new token launches, maintains strict stop-losses, and shows pattern of following 3 specific whale wallets. Win rate of 68% is significantly above average. Primary risk: high concentration in meme tokens with over 70% of portfolio in volatile small-caps. The trader's discipline in cutting losses quickly compensates for occasional large drawdowns. Overall, a high-conviction, high-frequency operator worth monitoring."
 
 export default function Page() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [showResults, setShowResults] = useState(false)
-  const [walletAddress, setWalletAddress] = useState("")
+  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [submittedAddress, setSubmittedAddress] = useState<string | null>(null)
 
-  const { data, error } = useRPC();
-
+  const { tokenPnls, stats, progress, isLoading, error, reset } = useStreamAnalysis(submittedAddress)
 
   const handleAnalyze = useCallback((address: string) => {
+    reset()
     setWalletAddress(address)
-    setIsLoading(true)
-    setShowResults(false)
+    setSubmittedAddress(address)
+  }, [reset])
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
-      setShowResults(true)
-    }, 2200)
-  }, []);
+  const showResults = tokenPnls.length > 0 || stats !== null
 
+  const progressLabel = progress ? `Fetching ${progress.chunk}/${progress.total}` : undefined
 
+  const realStats = stats
+    ? {
+        winRate: Math.round(stats.winRate),
+        avgHoldTime: stats.avgHoldTimeHours > 0
+          ? `${stats.avgHoldTimeHours.toFixed(1)}h`
+          : "N/A",
+        totalPnl: `${stats.totalPnl >= 0 ? "+" : ""}${stats.totalPnl.toFixed(2)}`,
+        biggestLoss: stats.biggestLoss < 0
+          ? stats.biggestLoss.toFixed(2)
+          : "0",
+      }
+    : null
+
+  const realHoldings = tokenPnls
+    .filter((t) => t.result === "OPEN")
+    .map((t) => ({
+      token: t.tokenName ?? t.mint.slice(0, 8) + "…",
+      symbol: t.symbol ?? "???",
+      amount: `${t.totalTokensBought.toLocaleString()} tokens`,
+      pnlPercent: t.pnlPercent ?? 0,
+    }))
 
   return (
     <div className="relative min-h-screen grid-bg">
@@ -119,31 +118,55 @@ export default function Page() {
       {/* Main Content */}
       <main className="relative z-10">
         {/* Hero */}
-        <HeroSection onAnalyze={handleAnalyze} isLoading={isLoading} />
+        <HeroSection onAnalyze={handleAnalyze} isLoading={isLoading} progressLabel={progressLabel} />
 
-        {/* Result Panel */}
+        {/* Error State */}
+        {error && submittedAddress && (
+          <section className="max-w-6xl mx-auto px-6 pb-8">
+            <div className="stat-card border border-[var(--wm-red)]/30 p-5 opacity-0 animate-fade-in-up">
+              <span
+                className="text-sm text-[var(--wm-red)]"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                ⚠ Failed to analyze wallet. Please check the address and try again.
+              </span>
+            </div>
+          </section>
+        )}
+
+        {/* Result Panel — visible as soon as first token streams in */}
         {showResults && (
           <section className="max-w-6xl mx-auto px-6 pb-24 space-y-[1px]">
-            {/* Header */}
-            <ResultHeader address={walletAddress} txnCount={847} />
+            {/* Header — only once we have transactionCount from the stats event */}
+            {stats && (
+              <ResultHeader
+                address={walletAddress ?? ""}
+                txnCount={stats.transactionCount}
+              />
+            )}
 
-            {/* Stat Cards */}
-            <StatCards data={MOCK_STATS} />
+            {/* Stat Cards — only after stats event */}
+            {realStats && <StatCards data={realStats} />}
 
             {/* Two Column Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-[1px] pt-[1px]">
               {/* Left Column - 3/5 */}
               <div className="lg:col-span-3 space-y-[1px]">
                 <AiVerdict copyScore={8.2} summary={AI_SUMMARY} />
-                <ActivityChart data={MOCK_ACTIVITY} />
               </div>
 
               {/* Right Column - 2/5 */}
               <div className="lg:col-span-2 space-y-[1px]">
-                <CurrentHoldings holdings={MOCK_HOLDINGS} />
-                <TradingPatterns patterns={MOCK_PATTERNS} />
+                <CurrentHoldings holdings={realHoldings} />
+                {/* <TradingPatterns patterns={MOCK_PATTERNS} /> */}
               </div>
             </div>
+
+            {/* Trades Table — fills progressively as token events arrive */}
+            <div className="pt-[1px]">
+              <TradesTable trades={tokenPnls} />
+            </div>
+
           </section>
         )}
       </main>
