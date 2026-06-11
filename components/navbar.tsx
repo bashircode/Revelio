@@ -9,18 +9,13 @@ export function Navbar() {
       {/* Logo */}
       <div className="flex items-center gap-2.5">
         <div className="relative flex items-center justify-center w-8 h-8">
-          <HugeiconsIcon
-            icon={Blockchain01Icon}
-            size={20}
-            color="var(--wm-green)"
-          />
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--wm-green)] pulse-dot" />
+          <img src="./icon.png" alt="" />
         </div>
         <span
           className="text-lg tracking-tight text-[var(--wm-text-bright)]"
           style={{ fontFamily: "var(--font-heading)" }}
         >
-          WalletMind
+          Revelio
         </span>
       </div>
 

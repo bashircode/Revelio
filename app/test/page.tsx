@@ -28,7 +28,7 @@ export default function TestPage() {
         <div className="flex items-center gap-2.5">
           <HugeiconsIcon icon={Blockchain01Icon} size={20} color="var(--wm-green)" />
           <span className="text-lg tracking-tight text-[var(--wm-text-bright)]" style={{ fontFamily: "var(--font-heading)" }}>
-            WalletMind
+            Revelio
           </span>
           <span className="text-[9px] ml-2 px-2 py-0.5 uppercase tracking-[0.2em] border border-[var(--wm-yellow)]/30 text-[var(--wm-yellow)] bg-[var(--wm-yellow-dim)]" style={{ fontFamily: "var(--font-mono)" }}>
             Test

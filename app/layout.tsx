@@ -1,5 +1,5 @@
 "use client"
-import { Space_Mono, Syne } from "next/font/google"
+import { Outfit, Syne } from "next/font/google"
 import type { Metadata } from "next"
 
 import "./globals.css"
@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { queryClient } from "@/lib/queryclient"
 
-const spaceMono = Space_Mono({
+const outfit = Outfit({
   subsets: ["latin"],
-  weight: ["400", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-mono",
 })
 
@@ -20,7 +20,7 @@ const syne = Syne({
 })
 
 // export const metadata: Metadata = {
-//   title: "WalletMind — AI Solana Wallet Analyzer",
+//   title: "Revelio — AI Solana Wallet Analyzer",
 //   description:
 //     "Paste any Solana wallet and get an AI breakdown of trading patterns, wins, losses and behavior.",
 // }
@@ -36,7 +36,7 @@ export default function RootLayout({
           lang="en"
           className={cn(
             "dark antialiased",
-            spaceMono.variable,
+            outfit.variable,
             syne.variable
           )}
         >

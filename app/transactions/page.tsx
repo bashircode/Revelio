@@ -557,7 +557,7 @@ export default function TransactionsPage() {
             className="text-[10px] text-[var(--wm-text-dim)] uppercase tracking-wider"
             style={{ fontFamily: "var(--font-mono)" }}
           >
-            WalletMind v0.1.0
+            Revelio v0.1.0
           </span>
           <span
             className="text-[10px] text-[var(--wm-text-dim)] uppercase tracking-wider"
