@@ -32,8 +32,6 @@ export function calculatePNL(transactions: TransactionInfo[]): TokenPnL[] {
     grouped[mint].push(tx)
   }
 
-  console.log(grouped);
-
   return Object.entries(grouped).map(([mint, txs]) => {
     // Sort chronologically so sells only close buys that came before them
     const sorted = [...txs].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
